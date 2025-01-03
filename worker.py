@@ -1,12 +1,17 @@
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.getLogger("temporalio.worker._workflow_instance").setLevel(logging.ERROR)
+
+# Other worker setup code
 from temporalio.worker import Worker
 from temporalio.client import Client
 from workflows import EchoWorkflow, echo_activity
 
 async def main():
-    # Connect to Temporal server
     client = await Client.connect("localhost:7233")
 
-    # Create and run the worker
     worker = Worker(
         client,
         task_queue="echo-task-queue",

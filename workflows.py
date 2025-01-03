@@ -3,6 +3,13 @@ from datetime import timedelta
 from temporalio import activity
 from dataclasses import dataclass
 
+import logging
+
+# Configure the logger
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+workflow_logger = logging.getLogger("workflow_logger")
+activity_logger = logging.getLogger("activity_logger")
+
 @dataclass
 class EchoWorkflowParams:
     name: str
@@ -10,8 +17,11 @@ class EchoWorkflowParams:
 @workflow.defn(name="EchoWorkflow")
 class EchoWorkflow:
     @workflow.run
-    async def run(self, name: str) -> str:
-        if not name or not isinstance(name, str):
+    async def run(self, name: str = None) -> str:
+        workflow_logger.info(f"Starting EchoWorkflow with name: {name}")
+
+        if not name:
+            workflow.logger.error("Name parameter is required but not provided.")
             raise ValueError("Name parameter must be a non-empty string")
             
         try:
@@ -20,19 +30,20 @@ class EchoWorkflow:
                 EchoWorkflowParams(name),
                 start_to_close_timeout=timedelta(seconds=10),
             )
-        except workflow.ActivityError as e:
-            workflow.logger.error(f"Activity execution failed: {str(e)}")
-            raise
         except Exception as e:
-            workflow.logger.error(f"Unexpected error in workflow: {str(e)}")
+            workflow_logger.error(f"Error in workflow execution: {e}", exc_info=True)
             raise
 
 @activity.defn(name="echo_activity")
 async def echo_activity(input: EchoWorkflowParams) -> str: 
     try:
-        if not input or not input.name:
+        activity_logger.info(f"Starting echo_activity with input: {input}")
+
+        if not input.name:
             raise ValueError("Invalid input: name cannot be empty")
-        return f"===> {input.name} <==="
+        result = f"===> {input.name} <==="
+        activity_logger.info(f"Activity completed successfully with result: {result}")
+        return result
     except Exception as e:
-        activity.logger.error(f"Error in echo_activity: {str(e)}")
-        raise activity.ApplicationError(f"Echo activity failed: {str(e)}")
+        activity_logger.error(f"Error in echo_activity: {e}", exc_info=True)
+        raise
